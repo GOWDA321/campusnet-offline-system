@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusNet Local - 48-Hour Offline Campus Continuity System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .emergency-flash {
+            animation: emergencyFlash 1s infinite alternate;
+        }
+        @keyframes emergencyFlash {
+            from { background-color: rgba(239, 68, 68, 0.15); }
+            to { background-color: rgba(239, 68, 68, 0.4); }
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 font-sans antialiased flex flex-col selection:bg-indigo-500 selection:text-white">
+
+    <!-- Offline Status Banner -->
+    <div id="offline-banner" class="bg-amber-600/90 text-amber-50 px-4 py-2 text-xs sm:text-sm font-medium flex flex-wrap items-center justify-between shadow-md z-50 transition-all duration-300">
+        <div class="flex items-center space-x-2">
+            <span class="flex h-3 w-3 relative">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-200"></span>
+            </span>
+            <span class="font-bold tracking-wide uppercase">OFFLINE MODE ACTIVE:</span>
+            <span>Local Mesh Network & Wi-Fi Active. Internet Outage Day 1 (48h Countdown).</span>
+        </div>
+        <div class="flex items-center space-x-4 mt-1 sm:mt-0">
+            <div class="flex items-center space-x-1 bg-amber-700/60 px-2.5 py-0.5 rounded text-xs">
+                <i class="fa-solid fa-clock"></i>
+                <span id="outage-countdown" class="font-mono font-bold">47:59:12 remaining</span>
+            </div>
+            <div class="flex items-center space-x-1 bg-emerald-600/80 px-2.5 py-0.5 rounded text-xs">
+                <i class="fa-solid fa-server"></i>
+                <span>Local Server: Online (Node #4)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation Bar -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-network-wired text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-tight text-white flex items-center gap-2">
+                        CampusNet Local 
+                        <span class="text-xs bg-indigo-900 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-700 font-normal">v2.4-mesh</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Emergency 48-Hour Campus Continuity OS</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <!-- Role Switcher -->
+                <div class="hidden md:flex items-center bg-slate-900 rounded-lg p-1 border border-slate-700 text-xs">
+                    <span class="text-slate-400 px-2 font-medium">Role:</span>
+                    <button onclick="switchRole('student')" id="role-btn-student" class="px-3 py-1.5 rounded-md font-medium transition-all bg-indigo-600 text-white shadow">Student</button>
+                    <button onclick="switchRole('teacher')" id="role-btn-teacher" class="px-3 py-1.5 rounded-md font-medium transition-all text-slate-300 hover:text-white">Teacher</button>
+                    <button onclick="switchRole('admin')" id="role-btn-admin" class="px-3 py-1.5 rounded-md font-medium transition-all text-slate-300 hover:text-white">Admin</button>
+                </div>
+
+                <!-- Emergency SOS Trigger Button -->
+                <button onclick="triggerEmergencyModal()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3.5 py-2 rounded-lg text-xs sm:text-sm flex items-center space-x-2 shadow-lg shadow-rose-600/30 transition-transform active:scale-95 animate-pulse-slow">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>CAMPUS SOS</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- App Container -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl w-full mx-auto">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="w-full md:w-64 bg-slate-800/80 border-r border-slate-700 flex md:flex-col justify-between p-2 sm:p-4 overflow-x-auto md:overflow-y-auto shrink-0">
+            <nav class="flex md:flex-col space-x-2 md:space-x-0 md:space-y-1.5 w-full">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-tab flex items-center space-x-3 w-full px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all bg-indigo-600 text-white shadow-md">
+                    <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                    <span class="whitespace-nowrap">Dashboard</span>
+                </button>
+                <button onclick="switchTab('exams')" id="nav-exams" class="nav-tab flex items-center space-x-3 w-full px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all text-slate-300 hover:bg-slate-700/60 hover:text-white">
+                    <i class="fa-solid fa-file-pen w-5 text-center"></i>
+                    <span class="whitespace-nowrap">Exams & Attendance</span>
+                </button>
+                <button onclick="switchTab('learning')" id="nav-learning" class="nav-tab flex items-center space-x-3 w-full px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all text-slate-300 hover:bg-slate-700/60 hover:text-white">
+                    <i class="fa-solid fa-book-bookmark w-5 text-center"></i>
+                    <span class="whitespace-nowrap">Local Learning Hub</span>
+                </button>
+                <button onclick="switchTab('comms')" id="nav-comms" class="nav-tab flex items-center space-x-3 w-full px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all text-slate-300 hover:bg-slate-700/60 hover:text-white">
+                    <i class="fa-solid fa-comments w-5 text-center"></i>
+                    <span class="whitespace-nowrap">Announcements & Comms</span>
+                </button>
+                <button onclick="switchTab('emergency')" id="nav-emergency" class="nav-tab flex items-center space-x-3 w-full px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all text-slate-300 hover:bg-slate-700/60 hover:text-white">
+                    <i class="fa-solid fa-shield-halved w-5 text-center"></i>
+                    <span class="whitespace-nowrap">Emergency & Safety</span>
+                </button>
+                <button onclick="switchTab('sync')" id="nav-sync" class="nav-tab flex items-center space-x-3 w-full px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all text-slate-300 hover:bg-slate-700/60 hover:text-white">
+                    <i class="fa-solid fa-cloud-arrow-up w-5 text-center"></i>
+                    <span class="whitespace-nowrap">Cloud Sync Panel</span>
+                </button>
+            </nav>
+
+            <!-- Bottom Connection Status Widget -->
+            <div class="hidden md:block mt-6 p-3 bg-slate-900/80 rounded-xl border border-slate-700/60 text-xs">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-slate-400 font-medium">Local Mesh Peers:</span>
+                    <span class="bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded">348 Connected</span>
+                </div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-slate-400 font-medium">Storage Used:</span>
+                    <span class="text-slate-200">64.2 GB / 512 GB</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-indigo-500 h-1.5 rounded-full" style="width: 12.5%"></div>
+                </div>
+                <div class="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+                    <span>Power: Battery (94%)</span>
+                    <span>Server ID: L-SRV-04</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8">
+
+            <!-- TAB 1: DASHBOARD / OVERVIEW -->
+            <div id="tab-dashboard" class="tab-content space-y-6">
+                <!-- Welcome Banner -->
+                <div class="bg-gradient-to-r from-indigo-900/60 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+                    <div class="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+                        <i class="fa-solid fa-wifi text-9xl text-indigo-400"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="inline-flex items-center space-x-2 bg-indigo-500/20 text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full mb-3 border border-indigo-500/30">
+                            <i class="fa-solid fa-shield-check"></i>
+                            <span>Local Continuity Protocol Engaged</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">CampusNet Offline Operations Hub</h2>
+                        <p class="text-slate-300 text-sm sm:text-base max-w-3xl">
+                            All critical academic services, offline examinations, secure attendance logs, and emergency communication nodes are running locally via the campus Wi-Fi mesh network. No internet required.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Quick Stats Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Students</span>
+                            <div class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl">
+                                <i class="fa-solid fa-user-graduate text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1">1,428</div>
+                        <div class="text-xs text-emerald-400 flex items-center gap-1 font-medium">
+                            <i class="fa-solid fa-circle text-[8px]"></i> Connected to local mesh Wi-Fi
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Local Servers</span>
+                            <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                                <i class="fa-solid fa-server text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1">6 / 6</div>
+                        <div class="text-xs text-emerald-400 flex items-center gap-1 font-medium">
+                            <i class="fa-solid fa-circle text-[8px]"></i> 100% operational cluster
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Pending Cloud Sync</span>
+                            <div class="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl">
+                                <i class="fa-solid fa-database text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1" id="stat-pending-sync">142 items</div>
+                        <div class="text-xs text-amber-400 flex items-center gap-1 font-medium">
+                            <i class="fa-solid fa-clock text-[8px]"></i> Queued for post-outage upload
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Exams</span>
+                            <div class="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl">
+                                <i class="fa-solid fa-file-pen text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1">3 Exams</div>
+                        <div class="text-xs text-blue-400 flex items-center gap-1 font-medium">
+                            <i class="fa-solid fa-circle text-[8px]"></i> Secure local submission live
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Health Status & Quick Actions -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- System Health Status -->
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+                        <h3 class="text-lg font-bold text-white mb-4 flex items-center justify-between">
+                            <span>Local Infrastructure Health</span>
+                            <span class="text-xs font-normal bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md border border-emerald-500/30">All Nodes Stable</span>
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-3.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                                        <i class="fa-solid fa-wifi text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-sm text-white">Campus Wi-Fi Mesh Network</h4>
+                                        <p class="text-xs text-slate-400">Subnet: 192.168.10.0/24 (AP-North & AP-South active)</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full font-medium">Optimal</span>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                                        <i class="fa-solid fa-hard-drive text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-sm text-white">Local PostgreSQL & Redis Server</h4>
+                                        <p class="text-xs text-slate-400">Local SSD storage caching student submissions in real-time</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full font-medium">Sync Ready</span>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3.5 bg-slate-800/60 rounded-xl border border-slate-700/50">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                                        <i class="fa-solid fa-battery-full text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-sm text-white">Backup Generator & UPS Power</h4>
+                                        <p class="text-xs text-slate-400">Server room uninterruptible power supply at 94% capacity</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full font-medium">Stable</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Action Shortcuts -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-white mb-4">Quick Shortcuts</h3>
+                            <div class="space-y-3">
+                                <button onclick="switchTab('exams')" class="w-full text-left p-3.5 bg-slate-800/80 hover:bg-indigo-600/20 border border-slate-700 hover:border-indigo-500/50 rounded-xl transition-all flex items-center justify-between group">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-sm text-white">Take Offline Exam</div>
+                                            <div class="text-xs text-slate-400">CS302 Data Structures Quiz</div>
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-indigo-400"></i>
+                                </button>
+
+                                <button onclick="switchTab('learning')" class="w-full text-left p-3.5 bg-slate-800/80 hover:bg-indigo-600/20 border border-slate-700 hover:border-indigo-500/50 rounded-xl transition-all flex items-center justify-between group">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                            <i class="fa-solid fa-book"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-sm text-white">Access Study Materials</div>
+                                            <div class="text-xs text-slate-400">Lecture slides & past papers</div>
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-emerald-400"></i>
+                                </button>
+
+                                <button onclick="switchTab('comms')" class="w-full text-left p-3.5 bg-slate-800/80 hover:bg-indigo-600/20 border border-slate-700 hover:border-indigo-500/50 rounded-xl transition-all flex items-center justify-between group">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="p-2 bg-amber-500/10 text-amber-400 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                                            <i class="fa-solid fa-bullhorn"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-sm text-white">Campus Notice Board</div>
+                                            <div class="text-xs text-slate-400">Latest announcements</div>
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-amber-400"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-800 text-center">
+                            <p class="text-xs text-slate-400">Need technical assistance? Connect to local IT room at <span class="text-indigo-400 font-mono">192.168.10.99</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: EXAMINATIONS & ATTENDANCE -->
+            <div id="tab-exams" class="tab-content hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">Examinations & Attendance Portal</h2>
+                        <p class="text-slate-400 text-sm">Conduct offline assessments and record student attendance securely over local mesh.</p>
+                    </div>
+                    <!-- Role Specific Actions Toggle -->
+                    <div class="flex items-center space-x-2 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+                        <button onclick="setExamMode('student')" id="exam-mode-student" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition-all">Student View</button>
+                        <button onclick="setExamMode('teacher')" id="exam-mode-teacher" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all">Teacher Dashboard</button>
+                    </div>
+                </div>
+
+                <!-- STUDENT EXAM VIEW -->
+                <div id="exam-view-student" class="space-y-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+                        <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square text-indigo-400"></i>
+                            <span>Available Offline Exams & Quizzes</span>
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Exam Card 1 -->
+                            <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-5 flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full font-medium">CS302 - Midterm Quiz</span>
+                                        <span class="text-xs text-emerald-400 font-medium"><i class="fa-solid fa-circle text-[8px]"></i> Local Ready</span>
+                                    </div>
+                                    <h4 class="font-bold text-base text-white mb-1">Data Structures & Algorithms (Offline)</h4>
+                                    <p class="text-xs text-slate-400 mb-4">Duration: 30 Mins | 5 Multiple Choice Questions | Instant local scoring & encrypted sync queue.</p>
+                                </div>
+                                <div class="flex items-center justify-between pt-4 border-t border-slate-700">
+                                    <div class="text-xs text-slate-400">Status: <span class="text-white font-medium">Not Attempted</span></div>
+                                    <button onclick="startExamModal('CS302 Data Structures Quiz')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg text-xs transition-colors shadow">
+                                        Start Exam <i class="fa-solid fa-arrow-right ml-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Exam Card 2 -->
+                            <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-5 flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs bg-purple-500/20 text-purple-300 px-2.5 py-0.5 rounded-full font-medium">ENG201 - Literature</span>
+                                        <span class="text-xs text-emerald-400 font-medium"><i class="fa-solid fa-circle text-[8px]"></i> Local Ready</span>
+                                    </div>
+                                    <h4 class="font-bold text-base text-white mb-1">Victorian Era Poetry Analysis</h4>
+                                    <p class="text-xs text-slate-400 mb-4">Duration: 45 Mins | Essay & MCQ Assessment stored locally on server.</p>
+                                </div>
+                                <div class="flex items-center justify-between pt-4 border-t border-slate-700">
+                                    <div class="text-xs text-slate-400">Status: <span class="text-emerald-400 font-medium">Submitted (Grade: 92%)</span></div>
+                                    <button onclick="showNotification('You have already completed this exam. Result is saved on local server.')" class="bg-slate-700 text-slate-300 font-semibold px-4 py-2 rounded-lg text-xs cursor-pointer">
+                                        View Result
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Student Attendance Verification Widget -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+                        <h3 class="text-lg font-bold text-white mb-2">Today's Local Attendance Check-In</h3>
+                        <p class="text-xs text-slate-400 mb-4">Confirm your physical presence on campus during the 48-hour outage for official records.</p>
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 gap-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                                    <i class="fa-solid fa-fingerprint text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-semibold text-white">Roll Number: CS-2023-412 (Alex Morgan)</div>
+                                    <div class="text-xs text-emerald-400">Checked in via Local AP-North (Signal: Excellent)</div>
+                                </div>
+                            </div>
+                            <button onclick="markAttendance()" id="attendance-check-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow">
+                                <i class="fa-solid fa-check-to-slot mr-1"></i> Check-in for Today
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TEACHER EXAM & ATTENDANCE DASHBOARD -->
+                <div id="exam-view-teacher" class="space-y-6 hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Create Exam / Quiz Form -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+                            <h3 class="text-lg font-bold text-white mb-4">Publish Local Quiz/Exam</h3>
+                            <form onsubmit="handleCreateExam(event)" class="space-y-4 text-xs">
+                                <div>
+                                    <label class="block text-slate-300 font-medium mb-1">Course Code & Title</label>
+                                    <input type="text" id="new-exam-title" required placeholder="e.g. PHY101 Mechanics Quiz" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-300 font-medium mb-1">Duration (Minutes)</label>
+                                    <input type="number" id="new-exam-duration" required value="30" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-300 font-medium mb-1">Question Count</label>
+                                    <input type="number" id="new-exam-qcount" required value="5" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                                </div>
+                                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition-colors shadow">
+                                    Broadcast Quiz to Local Mesh
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Live Exam Submissions & Attendance Grid -->
+                        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-bold text-white">Live Submission Tracker (CS302)</h3>
+                                <span class="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-md font-medium">42 / 60 Submitted Locally</span>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs text-slate-300">
+                                    <thead class="bg-slate-800 text-slate-400 uppercase font-semibold">
+                                        <tr>
+                                            <th class="p-3 rounded-l-lg">Student Roll #</th>
+                                            <th class="p-3">Name</th>
+                                            <th class="p-3">Status</th>
+                                            <th class="p-3">Score</th>
+                                            <th class="p-3 rounded-r-lg text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-800" id="teacher-exam-roster">
+                                        <tr class="hover:bg-slate-800/40">
+                                            <td class="p-3 font-mono font-medium text-indigo-300">CS-2023-401</td>
+                                            <td class="p-3 font-semibold text-white">Jessica Taylor</td>
+                                            <td class="p-3"><span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[10px]">Submitted</span></td>
+                                            <td class="p-3 font-bold text-emerald-400">95 / 100</td>
+                                            <td class="p-3 text-right">
+                                                <button onclick="showNotification('Viewing decrypted local script for Jessica Taylor.')" class="text-indigo-400 hover:underline">View Script</button>
+                                            </td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-800/40">
+                                            <td class="p-3 font-mono font-medium text-indigo-300">CS-2023-402</td>
+                                            <td class="p-3 font-semibold text-white">Liam Martinez</td>
+                                            <td class="p-3"><span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[10px]">Submitted</span></td>
+                                            <td class="p-3 font-bold text-emerald-400">88 / 100</td>
+                                            <td class="p-3 text-right">
+                                                <button onclick="showNotification('Viewing decrypted local script for Liam Martinez.')" class="text-indigo-400 hover:underline">View Script</button>
+                                            </td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-800/40">
+                                            <td class="p-3 font-mono font-medium text-indigo-300">CS-2023-403</td>
+                                            <td class="p-3 font-semibold text-white">Sophia Johnson</td>
+                                            <td class="p-3"><span class="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded text-[10px]">In Progress</span></td>
+                                            <td class="p-3 text-slate-400">-</td>
+                                            <td class="p-3 text-right">
+                                                <button onclick="showNotification('Student is currently taking test.')" class="text-slate-500">Monitor</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: LOCAL LEARNING HUB -->
+            <div id="tab-learning" class="tab-content hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">Local Learning Repository</h2>
+                        <p class="text-slate-400 text-sm">Access pre-loaded course notes, textbooks, lecture slides, and past papers stored locally on campus servers.</p>
+                    </div>
+                    <!-- Search & Filter -->
+                    <div class="flex items-center space-x-2">
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="learning-search" oninput="filterLearningMaterials()" placeholder="Search notes, syllabus..." class="bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 w-full sm:w-64">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="flex flex-wrap gap-2 text-xs font-medium">
+                    <button onclick="filterCategory('all')" id="cat-all" class="cat-btn px-4 py-2 rounded-xl bg-indigo-600 text-white shadow">All Materials</button>
+                    <button onclick="filterCategory('notes')" id="cat-notes" class="cat-btn px-4 py-2 rounded-xl bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700">Lecture Notes</button>
+                    <button onclick="filterCategory('slides')" id="cat-slides" class="cat-btn px-4 py-2 rounded-xl bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700">Slide Decks</button>
+                    <button onclick="filterCategory('papers')" id="cat-papers" class="cat-btn px-4 py-2 rounded-xl bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700">Past Papers</button>
+                    <button onclick="filterCategory('syllabus')" id="cat-syllabus" class="cat-btn px-4 py-2 rounded-xl bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700">Syllabus</button>
+                </div>
+
+                <!-- Material Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="learning-grid">
+                    <!-- Card 1 -->
+                    <div class="material-card bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between shadow" data-category="notes" data-title="Data Structures Complete Lecture Notes">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[10px] uppercase font-bold tracking-wider bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded">Lecture Notes</span>
+                                <span class="text-xs text-slate-400 font-mono">14.2 MB</span>
+                            </div>
+                            <h4 class="font-bold text-base text-white mb-1">Data Structures & Algorithms Complete Guide</h4>
+                            <p class="text-xs text-slate-400 mb-4">Comprehensive notes covering Trees, Graphs, Hash Tables, and Dynamic Programming algorithms.</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-800 text-xs">
+                            <span class="text-slate-400">By Prof. Alan Turing</span>
+                            <button onclick="simulateDownload('Data_Structures_Notes.pdf')" class="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white px-3 py-1.5 rounded-lg font-medium transition-colors border border-indigo-500/30">
+                                <i class="fa-solid fa-download mr-1"></i> Download Local
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="material-card bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between shadow" data-category="slides" data-title="Operating Systems Process Synchronization Slides">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[10px] uppercase font-bold tracking-wider bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded">Slide Decks</span>
+                                <span class="text-xs text-slate-400 font-mono">28.5 MB</span>
+                            </div>
+                            <h4 class="font-bold text-base text-white mb-1">Operating Systems: Process Synchronization & Semaphores</h4>
+                            <p class="text-xs text-slate-400 mb-4">Slide deck covering mutex locks, monitors, deadlocks, and CPU scheduling algorithms.</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-800 text-xs">
+                            <span class="text-slate-400">By Dr. Grace Hopper</span>
+                            <button onclick="simulateDownload('OS_Process_Sync.pdf')" class="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white px-3 py-1.5 rounded-lg font-medium transition-colors border border-indigo-500/30">
+                                <i class="fa-solid fa-download mr-1"></i> Download Local
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="material-card bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between shadow" data-category="papers" data-title="Database Management Past Question Papers">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[10px] uppercase font-bold tracking-wider bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded">Past Papers</span>
+                                <span class="text-xs text-slate-400 font-mono">8.1 MB</span>
+                            </div>
+                            <h4 class="font-bold text-base text-white mb-1">DBMS Final Exam Past Papers (2021-2024)</h4>
+                            <p class="text-xs text-slate-400 mb-4">SQL queries, normalization exercises, and transaction management sample questions with solutions.</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-800 text-xs">
+                            <span class="text-slate-400">By Dept. of Computer Science</span>
+                            <button onclick="simulateDownload('DBMS_Past_Papers.pdf')" class="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white px-3 py-1.5 rounded-lg font-medium transition-colors border border-indigo-500/30">
+                                <i class="fa-solid fa-download mr-1"></i> Download Local
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 4 -->
+                    <div class="material-card bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between shadow" data-category="syllabus" data-title="Computer Networks Syllabus">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[10px] uppercase font-bold tracking-wider bg-blue-500/20 text-blue-300 px-2.5 py-1 rounded">Syllabus</span>
+                                <span class="text-xs text-slate-400 font-mono">3.4 MB</span>
+                            </div>
+                            <h4 class="font-bold text-base text-white mb-1">Computer Networks & Local Mesh Architecture Syllabus</h4>
+                            <p class="text-xs text-slate-400 mb-4">Detailed weekly breakdown of OSI layers, TCP/IP protocols, and wireless routing.</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-800 text-xs">
+                            <span class="text-slate-400">By Prof. Vint Cerf</span>
+                            <button onclick="simulateDownload('CN_Syllabus.pdf')" class="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white px-3 py-1.5 rounded-lg font-medium transition-colors border border-indigo-500/30">
+                                <i class="fa-solid fa-download mr-1"></i> Download Local
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: CAMPUS ANNOUNCEMENT & COMMS FEED -->
+            <div id="tab-comms" class="tab-content hidden space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Campus Announcement & Comms Feed</h2>
+                    <p class="text-slate-400 text-sm">Real-time local notice board and peer-to-peer chat running over campus Wi-Fi router.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Official Broadcast Notices -->
+                    <div class="lg:col-span-1 space-y-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-white text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-bullhorn text-amber-400"></i>
+                                    <span>Official Notices</span>
+                                </h3>
+                                <button onclick="openNoticeModal()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded font-medium transition-colors">
+                                    + Post Notice
+                                </button>
+                            </div>
+                            <div class="space-y-3" id="notice-board-list">
+                                <div class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60">
+                                    <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                                        <span class="text-indigo-400 font-semibold">Campus Admin</span>
+                                        <span>8:15 AM (Today)</span>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white mb-1">48-Hour Outage Protocol Active</h4>
+                                    <p class="text-xs text-slate-300">All classes will proceed according to the modified offline schedule. Use local Wi-Fi mesh for sharing resources.</p>
+                                </div>
+
+                                <div class="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60">
+                                    <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                                        <span class="text-purple-400 font-semibold">Exam Cell</span>
+                                        <span>9:30 AM (Today)</span>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white mb-1">Midterm Exams Rescheduled Locally</h4>
+                                    <p class="text-xs text-slate-300">Quizzes can be accessed via the Examinations tab. Results will sync automatically once internet returns.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Local Chat / Messaging Board -->
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow flex flex-col h-[550px]">
+                        <!-- Chat Header & Channel Selector -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <h3 class="font-bold text-white text-base" id="current-channel-title"># general-campus-mesh</h3>
+                            </div>
+                            <div class="flex items-center space-x-1.5 text-xs bg-slate-800 p-1 rounded-lg">
+                                <button onclick="switchChatChannel('general')" id="chat-ch-general" class="px-3 py-1 rounded bg-indigo-600 text-white font-medium transition-all">General</button>
+                                <button onclick="switchChatChannel('faculty')" id="chat-ch-faculty" class="px-3 py-1 rounded text-slate-300 hover:text-white transition-all">Faculty</button>
+                                <button onclick="switchChatChannel('emergency')" id="chat-ch-emergency" class="px-3 py-1 rounded text-slate-300 hover:text-white transition-all">Emergency</button>
+                            </div>
+                        </div>
+
+                        <!-- Chat Messages Container -->
+                        <div class="flex-1 overflow-y-auto py-4 space-y-4 pr-2" id="chat-messages-container">
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">DT</div>
+                                <div class="bg-slate-800/80 rounded-2xl p-3.5 max-w-lg border border-slate-700/60">
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <span class="font-bold text-xs text-white">Prof. David Thorne</span>
+                                        <span class="text-[10px] text-slate-400">8:32 AM</span>
+                                    </div>
+                                    <p class="text-xs text-slate-200">Good morning everyone. CS302 lecture notes have been successfully pushed to the local server repository.</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0">SM</div>
+                                <div class="bg-slate-800/80 rounded-2xl p-3.5 max-w-lg border border-slate-700/60">
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <span class="font-bold text-xs text-white">Sarah Miller (Student)</span>
+                                        <span class="text-[10px] text-slate-400">8:35 AM</span>
+                                    </div>
+                                    <p class="text-xs text-slate-200">Got it professor! Successfully downloaded the notes over AP-North Wi-Fi. Working smoothly without internet.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chat Input Form -->
+                        <form onsubmit="handleSendMessage(event)" class="pt-3 border-t border-slate-800 flex items-center space-x-2">
+                            <input type="text" id="chat-input-message" required placeholder="Type local broadcast message..." class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow">
+                                <i class="fa-solid fa-paper-plane mr-1"></i> Send
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: EMERGENCY & SAFETY SYSTEM -->
+            <div id="tab-emergency" class="tab-content hidden space-y-6">
+                <div class="bg-gradient-to-r from-rose-950 via-slate-900 to-slate-900 border border-rose-500/40 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+                    <div class="absolute right-4 top-4 text-rose-500/20 text-7xl pointer-events-none">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="inline-flex items-center space-x-2 bg-rose-500/20 text-rose-300 text-xs font-semibold px-3 py-1 rounded-full mb-3 border border-rose-500/30">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span>Campus Safety Protocol</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">Emergency & Rapid Response Hub</h2>
+                        <p class="text-slate-300 text-sm sm:text-base max-w-3xl">
+                            During power and internet outages, campus security and medical services remain fully active via local backup radio and mesh broadcast.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- SOS Trigger Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-white mb-2">Immediate SOS Assistance</h3>
+                            <p class="text-xs text-slate-400 mb-6">If you or someone nearby requires immediate medical attention, campus security intervention, or evacuation support, trigger the local SOS alert instantly.</p>
+                            
+                            <div class="bg-rose-950/40 border border-rose-500/30 rounded-xl p-4 mb-6">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-lg bg-rose-600 text-white flex items-center justify-center font-bold text-lg">
+                                        <i class="fa-solid fa-bell"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-bold text-white">Local Broadcast Alarm</div>
+                                        <div class="text-xs text-rose-300">Pings campus security console at 192.168.10.11 instantly</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="triggerEmergencyModal()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 rounded-xl text-base shadow-xl shadow-rose-600/30 transition-all flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                            <span>TRIGGER CAMPUS SOS ALERT</span>
+                        </button>
+                    </div>
+
+                    <!-- Emergency Contacts Directory -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+                        <h3 class="text-lg font-bold text-white mb-4">Emergency Contact Directory</h3>
+                        <div class="space-y-3 text-xs">
+                            <div class="flex items-center justify-between p-3.5 bg-slate-800/60 rounded-xl border border-slate-700/60">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-9 h-9 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                                        <i class="fa-solid fa-shield"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-white text-sm">Campus Security Control Room</div>
+                                        <div class="text-slate-400">Main Gate Post #1 (Intercom Ext: 101)</div>
+                                    </div>
+                                </div>
+                                <span class="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-1 rounded">Active</span>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3.5 bg-slate-800/60 rounded-xl border border-slate-700/60">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                                        <i class="fa-solid fa-briefcase-medical"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-white text-sm">Campus Medical Emergency Room</div>
+                                        <div class="text-slate-400">Student Wellness Center (Ext: 102)</div>
+                                    </div>
+                                </div>
+                                <span class="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-1 rounded">Active</span>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3.5 bg-slate-800/60 rounded-xl border border-slate-700/60">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                                        <i class="fa-solid fa-bolt"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-white text-sm">Campus IT & Power Generator Unit</div>
+                                        <div class="text-slate-400">Server Building Room 04 (Ext: 108)</div>
+                                    </div>
+                                </div>
+                                <span class="bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-1 rounded">Active</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: CLOUD SYNC CONTROL PANEL -->
+            <div id="tab-sync" class="tab-content hidden space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Cloud Sync Control Panel</h2>
+                    <p class="text-slate-400 text-sm">Monitor data queued during the offline period and execute secure synchronization once internet connectivity returns.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Sync Status Monitor -->
+                    <div class="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow space-y-4">
+                        <h3 class="text-lg font-bold text-white">Sync Status Monitor</h3>
+                        <div class="p-4 bg-slate-800/60 rounded-xl border border-slate-700/60 space-y-3 text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Internet Link:</span>
+                                <span class="text-rose-400 font-bold"><i class="fa-solid fa-circle-xmark mr-1"></i> Disconnected</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Local DB Status:</span>
+                                <span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Healthy (Cached)</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Queued Items:</span>
+                                <span class="text-indigo-300 font-bold font-mono">142 records</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Estimated Payload:</span>
+                                <span class="text-slate-200 font-mono">42.8 MB</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-2">
+                            <button onclick="triggerCloudSync()" id="sync-action-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs transition-all shadow flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <span>Simulate Cloud Sync (Post-Outage)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sync Queue Log & Progress -->
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow flex flex-col justify-between space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-bold text-white">Queued Transaction Logs</h3>
+                                <span class="text-xs bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded font-medium" id="sync-status-badge">Waiting for Internet Connection</span>
+                            </div>
+
+                            <!-- Progress Bar Container -->
+                            <div id="sync-progress-box" class="hidden mb-4 p-4 bg-slate-800/80 rounded-xl border border-slate-700 space-y-2">
+                                <div class="flex justify-between text-xs">
+                                    <span id="sync-progress-label" class="font-medium text-white">Synchronizing with AWS Cloud...</span>
+                                    <span id="sync-progress-percent" class="font-mono text-indigo-400">0%</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                                    <div id="sync-progress-bar" class="bg-indigo-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Logs Table -->
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs text-slate-300">
+                                    <thead class="bg-slate-800 text-slate-400 uppercase font-semibold">
+                                        <tr>
+                                            <th class="p-3 rounded-l-lg">Timestamp</th>
+                                            <th class="p-3">Module</th>
+                                            <th class="p-3">Event Description</th>
+                                            <th class="p-3 rounded-r-lg text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-800" id="sync-logs-table">
+                                        <tr class="hover:bg-slate-800/40">
+                                            <td class="p-3 font-mono text-slate-400">08:14 AM</td>
+                                            <td class="p-3 font-semibold text-indigo-300">Attendance</td>
+                                            <td class="p-3">Batch attendance recorded (1,428 students)</td>
+                                            <td class="p-3 text-right"><span class="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded text-[10px]">Queued</span></td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-800/40">
+                                            <td class="p-3 font-mono text-slate-400">08:22 AM</td>
+                                            <td class="p-3 font-semibold text-indigo-300">Examinations</td>
+                                            <td class="p-3">CS302 Quiz local submissions (42 scripts)</td>
+                                            <td class="p-3 text-right"><span class="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded text-[10px]">Queued</span></td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-800/40">
+                                            <td class="p-3 font-mono text-slate-400">09:05 AM</td>
+                                            <td class="p-3 font-semibold text-indigo-300">Comms</td>
+                                            <td class="p-3">Local broadcast notice board updates</td>
+                                            <td class="p-3 text-right"><span class="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded text-[10px]">Queued</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="text-[11px] text-slate-400 border-t border-slate-800 pt-3">
+                            <i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i> Data integrity verified with SHA-256 local ledger hashes before cloud synchronization.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL 1: TAKE EXAM MODAL -->
+    <div id="exam-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl relative">
+            <button onclick="closeExamModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="mb-4">
+                <span class="text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full font-medium" id="modal-exam-subtitle">CS302 Data Structures Quiz</span>
+                <h3 class="text-xl font-bold text-white mt-1" id="modal-exam-title">Offline Assessment</h3>
+            </div>
+
+            <div class="space-y-4 text-xs sm:text-sm text-slate-300 mb-6" id="exam-questions-container">
+                <div class="p-4 bg-slate-800/80 rounded-xl border border-slate-700/60">
+                    <p class="font-semibold text-white mb-2">1. What is the worst-case time complexity of QuickSort?</p>
+                    <div class="space-y-2 text-xs">
+                        <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="q1" value="A" class="text-indigo-600"> <span>O(N log N)</span></label>
+                        <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="q1" value="B" class="text-indigo-600"> <span>O(N^2)</span></label>
+                        <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="q1" value="C" class="text-indigo-600"> <span>O(N)</span></label>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-800/80 rounded-xl border border-slate-700/60">
+                    <p class="font-semibold text-white mb-2">2. Which data structure operates on a Last-In, First-Out (LIFO) basis?</p>
+                    <div class="space-y-2 text-xs">
+                        <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="q2" value="A" class="text-indigo-600"> <span>Queue</span></label>
+                        <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="q2" value="B" class="text-indigo-600"> <span>Stack</span></label>
+                        <label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="q2" value="C" class="text-indigo-600"> <span>Array</span></label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+                <div class="text-xs text-amber-400 font-mono flex items-center gap-1">
+                    <i class="fa-solid fa-clock"></i> <span id="modal-exam-timer">29:45 remaining</span>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="closeExamModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg text-xs">Cancel</button>
+                    <button onclick="submitExamAnswers()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow">Submit Locally</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: EMERGENCY SOS MODAL -->
+    <div id="emergency-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-rose-950/90 border-2 border-rose-600 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative text-center">
+            <div class="w-16 h-16 bg-rose-600 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl animate-bounce">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-2">CAMPUS SOS EMERGENCY ACTIVE</h3>
+            <p class="text-rose-200 text-xs sm:text-sm mb-6">
+                Your emergency signal has been broadcasted via local mesh Wi-Fi to campus security and medical personnel. Help is being dispatched to your nearest AP zone.
+            </p>
+
+            <div class="bg-slate-900/80 p-4 rounded-xl border border-rose-500/30 text-left text-xs space-y-2 mb-6">
+                <div class="font-bold text-white">Immediate Instructions:</div>
+                <div class="text-slate-300">• Stay calm and remain in your current building zone.</div>
+                <div class="text-slate-300">• Keep local mesh Wi-Fi connected on your device.</div>
+                <div class="text-slate-300">• Follow instructions from campus security wardens.</div>
+            </div>
+
+            <button onclick="closeEmergencyModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl text-xs transition-all border border-slate-700">
+                Acknowledge & Close Alert
+            </button>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        let currentRole = 'student';
+        let currentTab = 'dashboard';
+        let currentExamMode = 'student';
+        let currentChatChannel = 'general';
+
+        // Countdown Timer simulation for 48 hours
+        let totalSeconds = 47 * 3600 + 59 * 60 + 12;
+        setInterval(() => {
+            if (totalSeconds > 0) totalSeconds--;
+            let h = Math.floor(totalSeconds / 3600);
+            let m = Math.floor((totalSeconds % 3600) / 60);
+            let s = totalSeconds % 60;
+            document.getElementById('outage-countdown').innerText = 
+                `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} remaining`;
+        }, 1000);
+
+        // --- TAB NAVIGATION ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(el => {
+                el.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                el.classList.add('text-slate-300', 'hover:bg-slate-700/60', 'hover:text-white');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.classList.remove('text-slate-300', 'hover:bg-slate-700/60', 'hover:text-white');
+                activeNav.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+            }
+            currentTab = tabId;
+        }
+
+        // --- ROLE SWITCHER ---
+        function switchRole(role) {
+            currentRole = role;
+            ['student', 'teacher', 'admin'].forEach(r => {
+                const btn = document.getElementById(`role-btn-${r}`);
+                if (btn) {
+                    if (r === role) {
+                        btn.className = 'px-3 py-1.5 rounded-md font-medium transition-all bg-indigo-600 text-white shadow';
+                    } else {
+                        btn.className = 'px-3 py-1.5 rounded-md font-medium transition-all text-slate-300 hover:text-white';
+                    }
+                }
+            });
+            showNotification(`Switched role to: ${role.toUpperCase()} (Local Permissions Updated)`);
+        }
+
+        // --- EXAM MODE TOGGLE ---
+        function setExamMode(mode) {
+            currentExamMode = mode;
+            if (mode === 'student') {
+                document.getElementById('exam-view-student').classList.remove('hidden');
+                document.getElementById('exam-view-teacher').classList.add('hidden');
+                document.getElementById('exam-mode-student').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition-all';
+                document.getElementById('exam-mode-teacher').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all';
+            } else {
+                document.getElementById('exam-view-student').classList.add('hidden');
+                document.getElementById('exam-view-teacher').classList.remove('hidden');
+                document.getElementById('exam-mode-teacher').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition-all';
+                document.getElementById('exam-mode-student').className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all';
+            }
+        }
+
+        // --- LEARNING HUB FILTERS & SEARCH ---
+        function filterCategory(category) {
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.className = 'cat-btn px-4 py-2 rounded-xl bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700';
+            });
+            document.getElementById(`cat-${category}`).className = 'cat-btn px-4 py-2 rounded-xl bg-indigo-600 text-white shadow';
+
+            const cards = document.querySelectorAll('.material-card');
+            cards.forEach(card => {
+                if (category === 'all' || card.getAttribute('data-category') === category) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function filterLearningMaterials() {
+            const query = document.getElementById('learning-search').value.toLowerCase();
+            const cards = document.querySelectorAll('.material-card');
+            cards.forEach(card => {
+                const title = card.getAttribute('data-title').toLowerCase();
+                if (title.includes(query)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function simulateDownload(filename) {
+            showNotification(`Successfully downloaded "${filename}" from local campus server cache.`);
+        }
+
+        // --- CHAT CHANNELS ---
+        function switchChatChannel(channel) {
+            currentChatChannel = channel;
+            ['general', 'faculty', 'emergency'].forEach(ch => {
+                const btn = document.getElementById(`chat-ch-${ch}`);
+                if (btn) {
+                    if (ch === channel) {
+                        btn.className = 'px-3 py-1 rounded bg-indigo-600 text-white font-medium transition-all';
+                    } else {
+                        btn.className = 'px-3 py-1 rounded text-slate-300 hover:text-white transition-all';
+                    }
+                }
+            });
+            document.getElementById('current-channel-title').innerText = `# ${channel}-campus-mesh`;
+            showNotification(`Switched to channel: #${channel}`);
+        }
+
+        function handleSendMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input-message');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const container = document.getElementById('chat-messages-container');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'flex items-start space-x-3';
+            msgDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">YOU</div>
+                <div class="bg-slate-800/80 rounded-2xl p-3.5 max-w-lg border border-slate-700/60">
+                    <div class="flex items-center space-x-2 mb-1">
+                        <span class="font-bold text-xs text-white">You (${currentRole.toUpperCase()})</span>
+                        <span class="text-[10px] text-slate-400">Just now</span>
+                    </div>
+                    <p class="text-xs text-slate-200">${escapeHtml(text)}</p>
+                </div>
+            `;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+            input.value = '';
+            showNotification('Message broadcasted locally over mesh router.');
+        }
+
+        // --- EXAM MODAL FUNCTIONS ---
+        function startExamModal(title) {
+            document.getElementById('modal-exam-title').innerText = title;
+            document.getElementById('exam-modal').classList.remove('hidden');
+        }
+
+        function closeExamModal() {
+            document.getElementById('exam-modal').classList.add('hidden');
+        }
+
+        function submitExamAnswers() {
+            closeExamModal();
+            showNotification('Exam successfully submitted & encrypted on local server!');
+            // Update stat
+            let syncEl = document.getElementById('stat-pending-sync');
+            syncEl.innerText = '143 items';
+        }
+
+        // --- ATTENDANCE CHECK-IN ---
+        function markAttendance() {
+            const btn = document.getElementById('attendance-check-btn');
+            btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Checked In Successfully';
+            btn.className = 'bg-slate-700 text-emerald-400 font-bold px-5 py-2.5 rounded-lg text-xs cursor-default';
+            showNotification('Attendance logged locally for Alex Morgan (Roll: CS-2023-412).');
+        }
+
+        // --- TEACHER CREATE EXAM ---
+        function handleCreateExam(e) {
+            e.preventDefault();
+            const title = document.getElementById('new-exam-title').value;
+            showNotification(`Quiz "${title}" successfully broadcasted to all student nodes!`);
+            document.getElementById('new-exam-title').value = '';
+        }
+
+        // --- EMERGENCY SOS MODAL ---
+        function triggerEmergencyModal() {
+            document.getElementById('emergency-modal').classList.remove('hidden');
+        }
+
+        function closeEmergencyModal() {
+            document.getElementById('emergency-modal').classList.add('hidden');
+        }
+
+        // --- CLOUD SYNC SIMULATION ---
+        function triggerCloudSync() {
+            const btn = document.getElementById('sync-action-btn');
+            const progressBox = document.getElementById('sync-progress-box');
+            const progressBar = document.getElementById('sync-progress-bar');
+            const progressPercent = document.getElementById('sync-progress-percent');
+            const badge = document.getElementById('sync-status-badge');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            progressBox.classList.remove('hidden');
+            badge.innerText = 'Syncing with AWS Cloud...';
+            badge.className = 'text-xs bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded font-medium';
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                progressBar.style.width = `${progress}%`;
+                progressPercent.innerText = `${progress}%`;
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    badge.innerText = 'Successfully Synced (0 Pending)';
+                    badge.className = 'text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded font-medium';
+                    document.getElementById('stat-pending-sync').innerText = '0 items';
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btn.innerText = 'Sync Complete (Up to Date)';
+                    showNotification('All local offline data successfully synchronized with cloud database!');
+                }
+            }, 300);
+        }
+
+        // --- TOAST NOTIFICATION HELPER ---
+        function showNotification(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'pointer-events-auto bg-slate-800 border border-slate-700 text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 transition-all duration-300 transform translate-y-2 opacity-0';
+            toast.innerHTML = `
+                <i class="fa-solid fa-circle-info text-indigo-400 text-sm"></i>
+                <span>${escapeHtml(message)}</span>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
